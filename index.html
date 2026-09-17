@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>银龄e站暖阳行动 · 活动签到表（本地保存版）</title>
+    <script src="https://cdn.bootcdn.net/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            font-family: 'Microsoft YaHei', 'PingFang SC', 'SimHei', sans-serif;
+            background-color: #f4f6f9;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 15px;
+            padding-bottom: 100px;
+            min-height: 100vh;
+        }
+
+        /* 顶部数据保存状态条 */
+        .save-status {
+            position: fixed; top: 0; left: 0; width: 100%;
+            background: linear-gradient(90deg, #d15636, #e86a4a);
+            color: white; font-size: 13px; font-weight: bold;
+            padding: 8px 15px; text-align: center; z-index: 200;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        }
+        .save-status span { background: rgba(255,255,255,0.25); padding: 2px 8px; border-radius: 10px; font-size: 12px; margin-left: 5px;}
+
+        /* A4 纸张容器 */
+        .a4-container {
+            width: 100%;
+            max-width: 750px;
+            background: #ffffff;
+            padding: 20px 15px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            border-radius: 8px;
+            border-top: 6px solid #e86a4a;
+            margin-top: 40px;
+        }
+
+        /* 标题区 */
+        .header { text-align: center; margin-bottom: 15px; border-bottom: 2px solid #e86a4a; padding-bottom: 10px; }
+        .header h1 { font-size: 20px; color: #d15636; font-weight: 900; letter-spacing: 1px; margin-bottom: 5px; }
+        .header p { font-size: 12px; color: #666; font-weight: bold; }
+
+        /* 活动信息输入区 */
+        .info-section { display: flex; flex-wrap: wrap; gap: 8px 15px; margin-bottom: 15px; font-size: 14px; font-weight: bold; color: #333; }
+        .info-item { display: flex; align-items: flex-end; flex: 1 1 45%; gap: 4px; }
+        .info-item.full-width { flex: 1 1 100%; }
+        .input-line {
+            flex-grow: 1; border: none; border-bottom: 1.5px solid #333;
+            background: transparent; font-size: 14px; font-weight: bold;
+            color: #333; outline: none; padding: 2px 4px; font-family: inherit; text-align: left;
+        }
+        .input-line:focus { border-bottom-color: #d15636; }
+
+        /* 表格设计 */
+        table { width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 10px; }
+        th { background-color: #fff5f0; color: #d15636; font-weight: 900; padding: 6px 2px; border: 1.5px solid #333; text-align: center; }
+        td { border: 1px solid #333; padding: 0; text-align: center; height: 38px; position: relative; }
+        
+        /* 表格内的输入框 */
+        .table-input {
+            width: 100%; height: 100%; border: none; outline: none;
+            text-align: center; font-size: 14px; font-family: inherit;
+            background: transparent; color: #333; font-weight: bold; padding: 0 5px;
+        }
+        .col-num { width: 12%; font-weight: bold; }
+        .col-name { width: 48%; }
+        .col-sign { width: 40%; cursor: pointer; }
+
+        /* 签到打勾格子，点击整格切换状态 */
+        .check-box {
+            width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+            font-size: 22px; color: #ccc; user-select: none; transition: all 0.15s;
+        }
+        .check-box.checked {
+            color: #d15636; background: #fff5f0;
+        }
+
+        /* 底部签字区 */
+        .footer-sign {
+            margin-top: 15px; padding-top: 12px; font-size: 14px; font-weight: bold;
+            display: flex; align-items: flex-end; justify-content: flex-end;
+            border-top: 1px dashed #fce4dc;
+        }
+        .footer-sign input { width: 140px; }
+
+        /* 底部悬浮操作按钮 */
+        .float-btns {
+            position: fixed; bottom: 15px; left: 15px; right: 15px; 
+            display: flex; gap: 10px; z-index: 100;
+        }
+        .btn {
+            flex: 1; color: white; border: none; padding: 15px 10px; font-size: 15px; font-weight: bold;
+            border-radius: 30px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.15); transition: transform 0.2s;
+        }
+        .btn:active { transform: scale(0.97); }
+        .btn-image { background: linear-gradient(135deg, #2b579a, #1e3f73); }
+        .btn-clear { background: #fff; color: #d15636; border: 1.5px solid #d15636; box-shadow: none; max-width: 100px;}
+        .btn-print { background: linear-gradient(135deg, #d15636, #e86a4a); }
+
+        /* 图片预览弹窗 */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); z-index: 999;
+            display: none; flex-direction: column; align-items: center; justify-content: center; padding: 15px;
+        }
+        .modal-overlay img { max-width: 100%; max-height: 75vh; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .modal-tip { color: #fff; font-size: 15px; font-weight: bold; margin-top: 15px; background: rgba(232, 106, 74, 0.9); padding: 10px 20px; border-radius: 20px; }
+        .modal-close { margin-top: 12px; color: #ccc; font-size: 15px; text-decoration: underline; cursor: pointer; }
+
+        /* 提示气泡 */
+        .toast {
+            position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.8); color: white; padding: 10px 20px;
+            border-radius: 20px; font-size: 14px; z-index: 998;
+            opacity: 0; transition: opacity 0.3s; pointer-events: none;
+        }
+        .toast.show { opacity: 1; }
+
+        @media print {
+            body { background: #fff; padding: 0; }
+            .a4-container { box-shadow: none; margin: 0; padding: 15mm; max-width: 100%; border-radius: 0; }
+            .float-btns, .modal-overlay, .save-status, .toast { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 顶部保存状态提示 -->
+    <div class="save-status">
+        💾 已开启自动保存 <span id="saveStatusText">数据已实时保存在本机</span>
+    </div>
+
+    <!-- A4 签到表内容区 -->
+    <div class="a4-container" id="formContent">
+        <div class="header">
+            <h1>银龄e站暖阳行动 · 活动签到表</h1>
+            <p>请志愿者依次点击打勾签到，数据自动保存</p>
+        </div>
+
+        <!-- 活动信息 -->
+        <div class="info-section">
+            <div class="info-item">活动时间：<input type="text" class="input-line" id="actTime" placeholder="____年__月__日"></div>
+            <div class="info-item">活动地点：<input type="text" class="input-line" id="actPlace" placeholder="请输入地点"></div>
+            <div class="info-item full-width">活动名称：<input type="text" class="input-line" id="actName" placeholder="请输入活动名称"></div>
+            <div class="info-item full-width">活动负责人：<input type="text" class="input-line" id="actLeader" placeholder="请输入负责人姓名"></div>
+        </div>
+
+        <!-- 签到表格 -->
+        <table>
+            <thead>
+                <tr>
+                    <th class="col-num">序号</th>
+                    <th class="col-name">姓名</th>
+                    <th class="col-sign">签到（点一下打勾）</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                <!-- 由JS动态生成25行 -->
+            </tbody>
+        </table>
+
+        <!-- 底部记录人 -->
+        <div class="footer-sign">
+            记录人签字：<input type="text" class="input-line" id="recorder" style="width: 140px;" placeholder="">
+        </div>
+    </div>
+
+    <!-- 悬浮操作按钮 -->
+    <div class="float-btns">
+        <button class="btn btn-clear" onclick="clearAll()">🗑️ 清空</button>
+        <button class="btn btn-image" onclick="saveAsImage()">📷 保存图片</button>
+        <button class="btn btn-print" onclick="window.print()">🖨️ 打印</button>
+    </div>
+
+    <!-- 图片预览弹窗 -->
+    <div class="modal-overlay" id="imageModal">
+        <img id="previewImage" src="" alt="签到表预览">
+        <div class="modal-tip">请长按上方图片，选择“保存图片”到相册</div>
+        <div class="modal-close" onclick="closeModal()">关闭</div>
+    </div>
+
+    <!-- 轻提示 -->
+    <div class="toast" id="toast">已自动保存</div>
+
+    <script>
+        // ==================== 数据存储核心逻辑 ====================
+        const STORAGE_KEY = 'ylyz_signin_data_v1';
+        const TOTAL_ROWS = 25;
+
+        // 页面加载时，从 localStorage 读取数据
+        document.addEventListener('DOMContentLoaded', function() {
+            initTable();
+            loadData();
+            bindAutoSave();
+            // 自动填入今天的日期（如果日期为空）
+            const timeInput = document.getElementById('actTime');
+            if (!timeInput.value) {
+                const now = new Date();
+                const pad = n => n < 10 ? '0' + n : n;
+                timeInput.value = now.getFullYear() + '年' + pad(now.getMonth() + 1) + '月' + pad(now.getDate()) + '日';
+                saveData(); // 自动保存日期
+            }
+        });
+
+        // 动态生成表格的25行，避免手动写HTML
+        function initTable() {
+            const tbody = document.getElementById('tableBody');
+            let html = '';
+            for (let i = 1; i <= TOTAL_ROWS; i++) {
+                html += `
+                    <tr>
+                        <td class="col-num">${i}</td>
+                        <td class="col-name">
+                            <input type="text" class="table-input" data-field="name_${i}" placeholder="">
+                        </td>
+                        <td class="col-sign" data-row="${i}" onclick="toggleCheck(this)">
+                            <div class="check-box" data-field="check_${i}">○</div>
+                        </td>
+                    </tr>
+                `;
+            }
+            tbody.innerHTML = html;
+        }
+
+        // 点击打勾格子：切换打勾状态
+        function toggleCheck(td) {
+            const checkbox = td.querySelector('.check-box');
+            const field = checkbox.dataset.field;
+            
+            if (checkbox.classList.contains('checked')) {
+                // 取消打勾
+                checkbox.classList.remove('checked');
+                checkbox.textContent = '○';
+                localStorage.removeItem(field);
+            } else {
+                // 打勾
+                checkbox.classList.add('checked');
+                checkbox.textContent = '✓';
+                localStorage.setItem(field, '1');
+            }
+            showToast('已自动保存');
+        }
+
+        // 绑定所有输入框的自动保存事件
+        function bindAutoSave() {
+            // 顶部信息字段
+            const infoFields = ['actTime', 'actPlace', 'actName', 'actLeader', 'recorder'];
+            infoFields.forEach(id => {
+                const el = document.getElementById(id);
+                el.addEventListener('input', () => {
+                    localStorage.setItem('info_' + id, el.value);
+                    showToast('已自动保存');
+                });
+            });
+
+            // 表格里的姓名输入框
+            document.querySelectorAll('.table-input').forEach(input => {
+                input.addEventListener('input', () => {
+                    localStorage.setItem(input.dataset.field, input.value);
+                    showToast('已自动保存');
+                });
+            });
+        }
+
+        // 保存所有数据到 localStorage
+        function saveData() {
+            const infoFields = ['actTime', 'actPlace', 'actName', 'actLeader', 'recorder'];
+            infoFields.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) localStorage.setItem('info_' + id, el.value);
+            });
+        }
+
+        // 从 localStorage 加载数据
+        function loadData() {
+            // 加载顶部信息
+            const infoFields = ['actTime', 'actPlace', 'actName', 'actLeader', 'recorder'];
+            infoFields.forEach(id => {
+                const el = document.getElementById(id);
+                const savedValue = localStorage.getItem('info_' + id);
+                if (el && savedValue !== null) {
+                    el.value = savedValue;
+                }
+            });
+
+            // 加载姓名
+            document.querySelectorAll('.table-input').forEach(input => {
+                const savedValue = localStorage.getItem(input.dataset.field);
+                if (savedValue !== null) input.value = savedValue;
+            });
+
+            // 加载打勾状态
+            document.querySelectorAll('.check-box').forEach(checkbox => {
+                const savedValue = localStorage.getItem(checkbox.dataset.field);
+                if (savedValue === '1') {
+                    checkbox.classList.add('checked');
+                    checkbox.textContent = '✓';
+                }
+            });
+        }
+
+        // 清空所有数据（带二次确认）
+        function clearAll() {
+            if (confirm('确定要清空所有签到数据吗？此操作不可撤销，建议先保存图片！')) {
+                localStorage.clear();
+                location.reload();
+            }
+        }
+
+        // ==================== 保存为图片 ====================
+        function saveAsImage() {
+            const formContent = document.getElementById('formContent');
+            const modal = document.getElementById('imageModal');
+            const previewImg = document.getElementById('previewImage');
+
+            // 隐藏底部按钮
+            document.querySelector('.float-btns').style.display = 'none';
+            document.querySelector('.save-status').style.display = 'none';
+            document.querySelector('.toast').style.display = 'none';
+
+            // 失焦，关闭键盘
+            if (document.activeElement) document.activeElement.blur();
+
+            html2canvas(formContent, {
+                scale: 2,
+                useCORS: true,
+                backgroundColor: '#ffffff',
+                logging: false
+            }).then(function(canvas) {
+                // 恢复按钮
+                document.querySelector('.float-btns').style.display = 'flex';
+                document.querySelector('.save-status').style.display = 'block';
+                document.querySelector('.toast').style.display = 'block';
+
+                const imgData = canvas.toDataURL('image/png');
+                previewImg.src = imgData;
+                modal.style.display = 'flex';
+            }).catch(function(error) {
+                document.querySelector('.float-btns').style.display = 'flex';
+                document.querySelector('.save-status').style.display = 'block';
+                document.querySelector('.toast').style.display = 'block';
+                alert('生成图片失败，请使用“打印/存PDF”。');
+            });
+        }
+
+        function closeModal() {
+            document.getElementById('imageModal').style.display = 'none';
+        }
+
+        // ==================== 轻提示 ====================
+        let toastTimer = null;
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = '💾 ' + msg;
+            toast.classList.add('show');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                toast.classList.remove('show');
+            }, 1200);
+        }
+    </script>
+</body>
+</html>
